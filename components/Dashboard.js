@@ -1,189 +1,106 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import AppNav from './AppNav';
-import { api, startPolling, timeAgo } from './api';
+import { api, startPolling, fmtDate, SCHOOL_STATUS } from './api';
+import { Hint, Pill, DaysLeft } from './ui';
+import { P } from './prompts';
 
-function CopyButton({ text, label = 'Copy' }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      className="btn small"
-      onClick={async () => {
-        try { await navigator.clipboard.writeText(text); } catch {}
-        setDone(true);
-        setTimeout(() => setDone(false), 1500);
-      }}
-    >
-      {done ? 'Copied' : label}
-    </button>
-  );
-}
-
-function ConnectClaude({ me, open, setOpen }) {
-  return (
-    <div className="card stack">
-      <div className="row between">
-        <div>
-          <h3 style={{ margin: 0 }}>Connect your Claude</h3>
-          <p className="small muted" style={{ margin: 0 }}>Do this once. After that, plans you ask Claude for appear here automatically.</p>
-        </div>
-        <button className="btn small" onClick={() => setOpen(!open)}>{open ? 'Hide steps' : 'Show steps'}</button>
-      </div>
-      {open && (
-        <>
-          <div>
-            <label>Your private MCP link</label>
-            <div className="row">
-              <div className="code grow">{me?.mcp_url || 'Loading…'}</div>
-              {me && <CopyButton text={me.mcp_url} label="Copy link" />}
-            </div>
-            <p className="small muted" style={{ marginTop: 6 }}>Treat this like a password: anyone with it can edit your plans.</p>
-          </div>
-          <ol className="steps">
-            <li>Open <b>claude.ai</b> (or the Claude desktop app) and go to <b>Settings</b>, then <b>Connectors</b>.</li>
-            <li>Click <b>Add custom connector</b>. Name it <b>PracticePad</b> and paste the link above. Click <b>Add</b>.</li>
-            <li>Start a new chat. In the tools menu (the + or sliders icon), make sure <b>PracticePad</b> is switched on.</li>
-            <li>Ask: <i>&ldquo;Using PracticePad, create a 3-week guitar plan for Kabir to play his first song.&rdquo;</i> Allow the tool when Claude asks.</li>
-          </ol>
-          <div className="notice small">
-            <b>Things to try with Claude:</b> &ldquo;Show my PracticePad plans and who is falling behind.&rdquo; · &ldquo;Ananya finished
-            week 1 early, add two harder tasks to week 2.&rdquo; · &ldquo;Mark Meera&rsquo;s plan as paused.&rdquo;
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function NewPlanForm({ onCreated, onCancel }) {
-  const [f, setF] = useState({ student_name: '', instrument: '', level: 'Beginner', goal: '', weeks: 2 });
-  const [err, setErr] = useState('');
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  async function submit(e) {
-    e.preventDefault();
-    setErr('');
-    try {
-      const { plan } = await api('/api/plans', 'POST', f);
-      onCreated(plan);
-    } catch (e) {
-      setErr(e.message);
-    }
-  }
-  return (
-    <form className="card stack" onSubmit={submit}>
-      <h3 style={{ margin: 0 }}>New plan (by hand)</h3>
-      <div className="grid3">
-        <div><label>Student name</label><input value={f.student_name} onChange={set('student_name')} placeholder="Kabir" /></div>
-        <div><label>Instrument</label><input value={f.instrument} onChange={set('instrument')} placeholder="Guitar" /></div>
-        <div>
-          <label>Level</label>
-          <select value={f.level} onChange={set('level')}><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
-        </div>
-      </div>
-      <div className="grid2" style={{ gridTemplateColumns: '3fr 1fr' }}>
-        <div><label>Goal</label><input value={f.goal} onChange={set('goal')} placeholder="Play his first song in 3 weeks" /></div>
-        <div><label>Weeks</label><input type="number" min="1" max="52" value={f.weeks} onChange={set('weeks')} /></div>
-      </div>
-      {err && <div className="error">{err}</div>}
-      <div className="row">
-        <button className="btn primary">Create and add tasks</button>
-        <button className="btn ghost" type="button" onClick={onCancel}>Cancel</button>
-      </div>
-    </form>
-  );
-}
+const NEXT = {
+  connect: { label: 'Connect your Claude to start', href: '/connect' },
+  schools: { hint: ['To add your schools', P.addSchools] },
+  profile: { hint: ['To build your profile, attach your CV in Claude and', P.profileFromCv] },
+  confirm: { label: 'Review and confirm your stories in the story bank', href: '/stories' },
+  essay: { label: 'Open an essay and plan its structure with Claude', href: '/essays' },
+};
 
 export default function Dashboard() {
-  const [me, setMe] = useState(null);
-  const [plans, setPlans] = useState(null);
+  const [d, setD] = useState(null);
   const [err, setErr] = useState('');
-  const [showNew, setShowNew] = useState(false);
-  const [openConnect, setOpenConnect] = useState(false);
-  const [filter, setFilter] = useState('all');
+  const load = useCallback(() => api('/api/dashboard').then(setD).catch((e) => setErr(e.message)), []);
+  useEffect(() => { load(); return startPolling(load, 4000); }, [load]);
+  if (!d) return err ? <div className="error">{err}</div> : <p className="muted">Loading…</p>;
 
-  const load = useCallback(async () => {
-    try {
-      const { plans } = await api('/api/plans');
-      setPlans(plans);
-      setErr('');
-    } catch (e) {
-      setErr(e.message);
-    }
-  }, []);
-
-  useEffect(() => {
-    api('/api/me').then(setMe).catch(() => {});
-    load();
-    return startPolling(load, 4000);
-  }, [load]);
-
-  useEffect(() => {
-    if (plans && plans.length === 0) setOpenConnect(true);
-  }, [plans]);
-
-  const shown = (plans || []).filter((p) => filter === 'all' || p.status === filter);
-  const active = (plans || []).filter((p) => p.status === 'active');
-  const totals = (plans || []).reduce((a, p) => ({ done: a.done + p.done_tasks, total: a.total + p.total_tasks }), { done: 0, total: 0 });
+  const next = d.steps.find((s) => !s.done);
+  const n = next && NEXT[next.key];
+  const doneCount = d.steps.filter((s) => s.done).length;
 
   return (
-    <>
-      <AppNav name={me?.academy || me?.name} />
-      <div className="wrap stack">
-        <div className="row between">
-          <div>
-            <h1 style={{ margin: 0 }}>Practice plans</h1>
-            <p className="muted" style={{ margin: 0 }}>
-              {plans ? `${active.length} active · ${totals.done} of ${totals.total} tasks practised` : 'Loading…'}
-              <span className="small"> · updates live</span>
-            </p>
-          </div>
-          <button className="btn primary" onClick={() => setShowNew(true)}>+ New plan</button>
+    <div className="stack">
+      <div className="row between">
+        <div>
+          <h1>Hi {d.user.name.split(' ')[0]}</h1>
+          <p className="muted" style={{ margin: 0 }}>
+            {d.schools.length} school{d.schools.length === 1 ? '' : 's'} · {d.essays.final} of {d.essays.total} essays final · profile {d.profile_completeness}% complete
+          </p>
         </div>
+        <span className={`pill ${d.user.claude_connected_at ? 'jade' : 'amber'}`}>{d.user.claude_connected_at ? 'Claude connected' : 'Claude not connected'}</span>
+      </div>
 
-        <ConnectClaude me={me} open={openConnect} setOpen={setOpenConnect} />
+      {next && (
+        <div className="card accent">
+          <div className="row between">
+            <h3 style={{ margin: 0 }}>Get started</h3>
+            <span className="small muted">{doneCount} of {d.steps.length} done</span>
+          </div>
+          <ul className="steps-list" style={{ marginTop: 8 }}>
+            {d.steps.map((s, i) => (
+              <li key={s.key}>
+                <span className={`dot ${s.done ? 'done' : ''}`}>{s.done ? '✓' : ''}</span>
+                <span className={s.done ? 'muted' : ''} style={{ fontWeight: s.key === next.key ? 650 : 400 }}>{i + 1}. {s.label}</span>
+              </li>
+            ))}
+          </ul>
+          {n?.hint && <Hint label={n.hint[0]} prompt={n.hint[1]} />}
+          {n?.href && <a className="btn primary sm" style={{ marginTop: 12 }} href={n.href}>{n.label}</a>}
+        </div>
+      )}
 
-        {showNew && <NewPlanForm onCancel={() => setShowNew(false)} onCreated={(p) => (window.location.href = `/plans/${p.id}`)} />}
-
-        {err && <div className="error">{err}</div>}
-
-        <div className="row">
-          {['all', 'active', 'paused', 'completed'].map((s) => (
-            <button key={s} className={`btn small ${filter === s ? 'primary' : ''}`} onClick={() => setFilter(s)}>
-              {s[0].toUpperCase() + s.slice(1)}
-            </button>
+      {d.flags.length > 0 && (
+        <div className="card">
+          <div className="section-title">Needs attention</div>
+          {d.flags.map((f, i) => (
+            <div key={i} className="row" style={{ padding: '4px 0' }}>
+              <span className={`pill ${f.level === 'high' ? 'red' : 'amber'}`}>{f.level === 'high' ? 'Urgent' : 'Soon'}</span>
+              <a href={f.href}>{f.text}</a>
+            </div>
           ))}
         </div>
+      )}
 
-        {plans && shown.length === 0 && (
-          <div className="card muted">No plans here yet. Ask your Claude to create one, or click <b>+ New plan</b>.</div>
-        )}
-
-        <div className="grid2">
-          {shown.map((p) => {
-            const pct = p.total_tasks ? Math.round((p.done_tasks / p.total_tasks) * 100) : 0;
-            return (
-              <a key={p.id} className="card plan-card stack" href={`/plans/${p.id}`}>
-                <div className="row between">
-                  <h3 style={{ margin: 0 }}>{p.student_name}</h3>
-                  <div className="row" style={{ gap: 6 }}>
-                    {p.created_via === 'claude' && <span className="pill brand">by Claude</span>}
-                    <span className={`pill ${p.status === 'completed' ? 'ok' : ''}`}>{p.status}</span>
-                  </div>
-                </div>
-                <div className="small muted">{p.instrument} · {p.weeks} week{p.weeks === 1 ? '' : 's'}</div>
-                <div>{p.goal}</div>
-                <div>
-                  <div className="bar"><div style={{ width: `${pct}%` }} /></div>
-                  <div className="row between small muted" style={{ marginTop: 6 }}>
-                    <span>{p.done_tasks}/{p.total_tasks} tasks done</span>
-                    <span>Last practice: {timeAgo(p.last_practice)}</span>
-                  </div>
-                </div>
-              </a>
-            );
-          })}
-        </div>
+      <div className="row between" style={{ marginTop: 24 }}>
+        <h2 style={{ margin: 0 }}>Your schools</h2>
       </div>
-    </>
+      {d.schools.length === 0 ? (
+        <div className="card">
+          <p className="muted">No schools yet.</p>
+          <Hint label="To add your schools" prompt={P.addSchools} />
+        </div>
+      ) : (
+        <div className="grid3">
+          {d.schools.map((s) => (
+            <a key={s.id} href={`/schools/${s.id}`} className="card accent link-card stack" style={{ gap: 0 }}>
+              <div className="row between">
+                <h3 style={{ margin: 0 }}>{s.name}</h3>
+                <DaysLeft days={s.days_left} />
+              </div>
+              <div className="small muted">{[s.program, s.round].filter(Boolean).join(' · ')} · {fmtDate(s.deadline)}</div>
+              <div className="row" style={{ gap: 6 }}>
+                <Pill map={SCHOOL_STATUS} value={s.status} />
+                {!s.verified && <span className="pill amber">Unverified</span>}
+              </div>
+              <div>
+                <div className="row between small"><span>Essays final</span><span>{s.essays_final} / {s.essays_total}</span></div>
+                <div className="bar"><div style={{ width: `${s.essays_total ? (s.essays_final / s.essays_total) * 100 : 0}%` }} /></div>
+              </div>
+              <div>
+                <div className="row between small"><span>Checklist</span><span>{s.checklist_done} / {s.checklist_total}</span></div>
+                <div className="bar"><div style={{ width: `${s.checklist_total ? (s.checklist_done / s.checklist_total) * 100 : 0}%` }} /></div>
+              </div>
+              {s.recs_total > 0 && <div className="small muted">Recommendations submitted: {s.recs_submitted} / {s.recs_total}</div>}
+            </a>
+          ))}
+        </div>
+      )}
+      {d.schools.length > 0 && <Hint label="To add another school" prompt={P.addSchools} />}
+    </div>
   );
 }

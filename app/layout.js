@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'PracticePad: practice plans your Claude writes',
-  description: 'Music teachers use their own Claude to create student practice plans. PracticePad saves, edits and shares them live.',
+  title: 'Mastercraft: your application season, crafted in one place',
+  description: 'For MBA and master’s applicants. Your own Claude researches schools, plans essays and reviews drafts; Mastercraft keeps everything in one place.',
 };
 
 export default function RootLayout({ children }) {

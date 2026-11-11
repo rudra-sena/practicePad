@@ -1,16 +1,17 @@
-// PracticePad MCP server (Streamable HTTP, stateless, JSON responses).
-// Each teacher has a private URL: /api/mcp/<their key>.
-import { teacherByKey, baseUrlFromHeaders } from '@/lib/auth';
-import { AppError } from '@/lib/plans';
+// Mastercraft MCP server (Streamable HTTP, stateless, JSON responses).
+// Each applicant has a private URL: /api/mcp/<their key>.
+import { userByKey, baseUrlFromHeaders } from '@/lib/auth';
+import { AppError, markClaudeSeen } from '@/lib/mc';
 import { TOOLS, callTool } from '@/lib/mcp-tools';
 
 export const dynamic = 'force-dynamic';
 
-const SERVER_INFO = { name: 'practicepad', title: 'PracticePad', version: '1.0.0' };
+const SERVER_INFO = { name: 'mastercraft', title: 'Mastercraft', version: '1.0.0' };
 const INSTRUCTIONS =
-  'PracticePad stores music practice plans for a teacher\'s students. You (Claude) design and write the plans; ' +
-  'PracticePad saves them, lets the teacher edit them, and gives each student a live link to tick tasks off. ' +
-  'After creating or changing a plan, share the teacher_edit_link and student_link with the user.';
+  'Mastercraft is the applicant\'s MBA and master\'s application workspace. You (Claude) do the thinking: research schools, ' +
+  'extract stories from a CV, ask short questions, plan essay outlines and review drafts. Mastercraft stores everything and keeps it live. ' +
+  'Mastercraft never writes essays or recommendation letters: outlines are bullet points, and the applicant writes the prose in the app. ' +
+  'After saving something, share the link to it with the applicant.';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -25,7 +26,7 @@ function rpcError(id, code, message) {
   return { jsonrpc: '2.0', id: id ?? null, error: { code, message } };
 }
 
-async function handleOne(msg, teacher, base) {
+async function handleOne(msg, user, base) {
   if (!msg || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
     return rpcError(msg?.id, -32600, 'Invalid request');
   }
@@ -52,11 +53,11 @@ async function handleOne(msg, teacher, base) {
       const name = msg.params?.name;
       if (!TOOLS.find((t) => t.name === name)) return rpcError(msg.id, -32602, `Unknown tool: ${name}`);
       try {
-        const out = await callTool(name, msg.params?.arguments, teacher, base);
+        const out = await callTool(name, msg.params?.arguments, user, base);
         return rpc(msg.id, { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }], structuredContent: out });
       } catch (e) {
         if (!(e instanceof AppError)) console.error(e);
-        const text = e instanceof AppError ? e.message : 'PracticePad hit an internal error. Please try again.';
+        const text = e instanceof AppError ? e.message : 'Mastercraft hit an internal error. Please try again.';
         return rpc(msg.id, { content: [{ type: 'text', text }], isError: true });
       }
     }
@@ -67,9 +68,9 @@ async function handleOne(msg, teacher, base) {
 
 export async function POST(req, { params }) {
   const { key } = await params;
-  const teacher = await teacherByKey(key);
-  if (!teacher) {
-    return Response.json(rpcError(null, -32001, 'This PracticePad MCP link is not valid. Copy it again from your dashboard.'), { status: 404, headers: CORS });
+  const user = await userByKey(key);
+  if (!user) {
+    return Response.json(rpcError(null, -32001, 'This Mastercraft MCP link is not valid. Copy it again from your dashboard.'), { status: 404, headers: CORS });
   }
   let body;
   try {
@@ -77,13 +78,14 @@ export async function POST(req, { params }) {
   } catch {
     return Response.json(rpcError(null, -32700, 'Parse error'), { status: 400, headers: CORS });
   }
+  await markClaudeSeen(user.id).catch(() => {});
   const base = await baseUrlFromHeaders(req.headers);
   if (Array.isArray(body)) {
-    const out = (await Promise.all(body.map((m) => handleOne(m, teacher, base)))).filter(Boolean);
+    const out = (await Promise.all(body.map((m) => handleOne(m, user, base)))).filter(Boolean);
     if (!out.length) return new Response(null, { status: 202, headers: CORS });
     return Response.json(out, { headers: CORS });
   }
-  const out = await handleOne(body, teacher, base);
+  const out = await handleOne(body, user, base);
   if (!out) return new Response(null, { status: 202, headers: CORS });
   return Response.json(out, { headers: CORS });
 }

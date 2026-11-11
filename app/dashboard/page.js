@@ -1,11 +1,8 @@
-import { redirect } from 'next/navigation';
-import { currentTeacher } from '@/lib/auth';
+import { requireUser } from '@/lib/page';
+import Shell from '@/components/Shell';
 import Dashboard from '@/components/Dashboard';
-
 export const dynamic = 'force-dynamic';
-
 export default async function Page() {
-  const t = await currentTeacher();
-  if (!t) redirect('/login');
-  return <Dashboard />;
+  await requireUser();
+  return <Shell><Dashboard /></Shell>;
 }
