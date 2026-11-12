@@ -1,4 +1,10 @@
 'use client';
+// Remembers the last response for each GET, so revisiting a page shows data instantly while it refreshes.
+const cache = new Map();
+export function peek(path) {
+  return cache.get(path);
+}
+
 export async function api(path, method = 'GET', body) {
   const res = await fetch(path, {
     method,
@@ -9,6 +15,7 @@ export async function api(path, method = 'GET', body) {
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && typeof window !== 'undefined' && !path.includes('?t=')) window.location.href = '/login';
   if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+  if (method === 'GET') cache.set(path, data);
   return data;
 }
 

@@ -1,10 +1,11 @@
 'use client';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { api, startPolling, timeAgo } from './api';
+import { api, peek, startPolling, timeAgo } from './api';
 import { CopyIcon } from './ui';
 
 export default function Connect() {
-  const [me, setMe] = useState(null);
+  const [me, setMe] = useState(() => peek('/api/me') || null);
   const load = useCallback(() => api('/api/me').then(setMe).catch(() => {}), []);
   useEffect(() => { load(); return startPolling(load, 3000); }, [load]);
   return (
@@ -30,7 +31,7 @@ export default function Connect() {
         </ol>
         <div className={me?.claude_connected_at ? 'notice' : 'warn'}>
           {me?.claude_connected_at
-            ? <>Claude connected. Last seen {timeAgo(me.claude_last_seen_at)}. <a href="/dashboard">Go to your dashboard</a></>
+            ? <>Claude connected. Last seen {timeAgo(me.claude_last_seen_at)}. <Link href="/dashboard">Go to your dashboard</Link></>
             : 'Waiting for your Claude… This updates as soon as Claude first uses Mastercraft.'}
         </div>
       </div>

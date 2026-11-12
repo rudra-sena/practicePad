@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, startPolling } from './api';
+import { api, peek, startPolling } from './api';
 import { Hint } from './ui';
 import { P } from './prompts';
 
@@ -11,7 +11,7 @@ const FIELDS = [
 const LONG = [['roles_timeline', 'Roles timeline (one role per line)'], ['skills', 'Skills'], ['achievements', 'Achievements and awards'], ['activities', 'Activities outside work']];
 
 export default function Profile() {
-  const [d, setD] = useState(null);
+  const [d, setD] = useState(() => peek('/api/profile') || null);
   const [form, setForm] = useState(null);
   const [answers, setAnswers] = useState({});
   const [msg, setMsg] = useState('');

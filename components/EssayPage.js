@@ -1,13 +1,14 @@
 'use client';
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, startPolling, countWords, timeAgo, ESSAY_STATUS } from './api';
+import { api, peek, startPolling, countWords, timeAgo, ESSAY_STATUS } from './api';
 import { Hint, Pill } from './ui';
 import { OutlineView, OutlineEditor } from './Outline';
 import { P } from './prompts';
 
 export default function EssayPage({ id }) {
-  const [d, setD] = useState(null);
-  const [text, setText] = useState('');
+  const [d, setD] = useState(() => peek(`/api/essays/${id}`) || null);
+  const [text, setText] = useState(() => peek(`/api/essays/${id}`)?.versions?.[0]?.body || '');
   const [view, setView] = useState(null); // version number being viewed (null = latest/editor)
   const [editOutline, setEditOutline] = useState(false);
   const [msg, setMsg] = useState('');
@@ -58,7 +59,7 @@ export default function EssayPage({ id }) {
 
   return (
     <div className="stack">
-      <a href={`/schools/${school.id}`} className="small">← {school.name} application</a>
+      <Link href={`/schools/${school.id}`} className="small">← {school.name} application</Link>
       <div className="row between">
         <div>
           <div className="row"><h1 style={{ margin: 0 }}>{school.name} · {essay.title}</h1><Pill map={ESSAY_STATUS} value={essay.status} /></div>

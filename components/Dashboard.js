@@ -1,6 +1,7 @@
 'use client';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { api, startPolling, fmtDate, SCHOOL_STATUS } from './api';
+import { api, peek, startPolling, fmtDate, SCHOOL_STATUS } from './api';
 import { Hint, Pill, DaysLeft } from './ui';
 import { P } from './prompts';
 
@@ -13,7 +14,7 @@ const NEXT = {
 };
 
 export default function Dashboard() {
-  const [d, setD] = useState(null);
+  const [d, setD] = useState(() => peek('/api/dashboard') || null);
   const [err, setErr] = useState('');
   const load = useCallback(() => api('/api/dashboard').then(setD).catch((e) => setErr(e.message)), []);
   useEffect(() => { load(); return startPolling(load, 4000); }, [load]);
@@ -50,7 +51,7 @@ export default function Dashboard() {
             ))}
           </ul>
           {n?.hint && <Hint label={n.hint[0]} prompt={n.hint[1]} />}
-          {n?.href && <a className="btn primary sm" style={{ marginTop: 12 }} href={n.href}>{n.label}</a>}
+          {n?.href && <Link className="btn primary sm" style={{ marginTop: 12 }} href={n.href}>{n.label}</Link>}
         </div>
       )}
 
@@ -60,7 +61,7 @@ export default function Dashboard() {
           {d.flags.map((f, i) => (
             <div key={i} className="row" style={{ padding: '4px 0' }}>
               <span className={`pill ${f.level === 'high' ? 'red' : 'amber'}`}>{f.level === 'high' ? 'Urgent' : 'Soon'}</span>
-              <a href={f.href}>{f.text}</a>
+              <Link href={f.href}>{f.text}</Link>
             </div>
           ))}
         </div>
@@ -77,7 +78,7 @@ export default function Dashboard() {
       ) : (
         <div className="grid3">
           {d.schools.map((s) => (
-            <a key={s.id} href={`/schools/${s.id}`} className="card accent link-card stack" style={{ gap: 0 }}>
+            <Link key={s.id} href={`/schools/${s.id}`} className="card accent link-card stack" style={{ gap: 0 }}>
               <div className="row between">
                 <h3 style={{ margin: 0 }}>{s.name}</h3>
                 <DaysLeft days={s.days_left} />
@@ -96,7 +97,7 @@ export default function Dashboard() {
                 <div className="bar"><div style={{ width: `${s.checklist_total ? (s.checklist_done / s.checklist_total) * 100 : 0}%` }} /></div>
               </div>
               {s.recs_total > 0 && <div className="small muted">Recommendations submitted: {s.recs_submitted} / {s.recs_total}</div>}
-            </a>
+            </Link>
           ))}
         </div>
       )}

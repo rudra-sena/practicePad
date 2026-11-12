@@ -1,7 +1,8 @@
 'use client';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { api } from './api';
+import { api, peek } from './api';
 
 const LINKS = [
   ['/dashboard', 'Dashboard'],
@@ -13,12 +14,12 @@ const LINKS = [
 ];
 
 export function Logo({ href = '/' }) {
-  return <a href={href} className="logo">Master<span>craft</span></a>;
+  return <Link href={href} className="logo">Master<span>craft</span></Link>;
 }
 
 export default function Shell({ children }) {
   const path = usePathname();
-  const [me, setMe] = useState(null);
+  const [me, setMe] = useState(() => peek('/api/me') || null);
   useEffect(() => { api('/api/me').then(setMe).catch(() => {}); }, []);
 
   async function logout() {
@@ -38,7 +39,7 @@ export default function Shell({ children }) {
           <Logo href="/dashboard" />
           <div className="nav-links">
             {LINKS.map(([href, label]) => (
-              <a key={href} href={href} className={path === href || (href !== '/dashboard' && path.startsWith(href)) || (href === '/essays' && path.startsWith('/schools')) ? 'on' : ''}>{label}</a>
+              <Link key={href} href={href} className={path === href || (href !== '/dashboard' && path.startsWith(href)) || (href === '/essays' && path.startsWith('/schools')) ? 'on' : ''}>{label}</Link>
             ))}
           </div>
           <div className="nav-right">

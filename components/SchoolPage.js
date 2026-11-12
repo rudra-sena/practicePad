@@ -1,6 +1,7 @@
 'use client';
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, startPolling, fmtDate, timeAgo, ESSAY_STATUS, SCHOOL_STATUS } from './api';
+import { api, peek, startPolling, fmtDate, timeAgo, ESSAY_STATUS, SCHOOL_STATUS } from './api';
 import { Hint, Pill, DaysLeft } from './ui';
 import { P } from './prompts';
 
@@ -75,7 +76,7 @@ function FinalCheckModal({ school, openedAt, onClose, onDecision }) {
 }
 
 export default function SchoolPage({ id }) {
-  const [s, setS] = useState(null);
+  const [s, setS] = useState(() => peek(`/api/schools/${id}`)?.school || null);
   const [err, setErr] = useState('');
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState({});
@@ -113,7 +114,7 @@ export default function SchoolPage({ id }) {
 
   return (
     <div className="stack">
-      <a href="/dashboard" className="small">← Dashboard</a>
+      <Link href="/dashboard" className="small">← Dashboard</Link>
       <div className="row between">
         <div>
           <div className="row"><h1 style={{ margin: 0 }}>{s.name}</h1><Pill map={SCHOOL_STATUS} value={s.status} />{s.verified ? <span className="pill jade">Verified</span> : <span className="pill amber">Unverified</span>}</div>
@@ -158,10 +159,10 @@ export default function SchoolPage({ id }) {
           <h2 style={{ margin: '6px 0 0' }}>Essays</h2>
           {s.essays.length === 0 && <div className="card small muted">No essay prompts saved for this school.</div>}
           {s.essays.map((e) => (
-            <a key={e.id} href={`/essays/${e.id}`} className="card link-card">
+            <Link key={e.id} href={`/essays/${e.id}`} className="card link-card">
               <div className="row between"><div className="row"><b>{e.title}</b><Pill map={ESSAY_STATUS} value={e.status} /></div><span className={`small ${e.word_limit && e.word_count > e.word_limit ? 'bad' : 'muted'}`}>{e.word_count}{e.word_limit ? ` / ${e.word_limit}` : ''} words</span></div>
               <p className="small muted" style={{ margin: '6px 0 0' }}>{e.prompt}</p>
-            </a>
+            </Link>
           ))}
           {s.latest_check && (
             <div className="card">
@@ -188,7 +189,7 @@ export default function SchoolPage({ id }) {
           {s.notes && <div className="card small"><h3>School notes</h3><p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{s.notes}</p></div>}
           <div className="card small">
             <h3>Recommenders</h3>
-            {s.recommenders.length === 0 ? <p className="muted" style={{ margin: 0 }}>None for this school yet. <a href="/recommenders">Add one</a></p> :
+            {s.recommenders.length === 0 ? <p className="muted" style={{ margin: 0 }}>None for this school yet. <Link href="/recommenders">Add one</Link></p> :
               s.recommenders.map((r) => <div key={r.id} className="row between" style={{ padding: '3px 0' }}><span>{r.name}</span>{r.submitted_at ? <span className="pill jade">Submitted</span> : <span className="pill amber">Pending</span>}</div>)}
           </div>
           {s.sources && <div className="card small"><h3>Sources</h3>{s.sources.split('\n').map((u) => <div key={u} style={{ wordBreak: 'break-all' }}><a href={u} target="_blank" rel="noreferrer">{u}</a></div>)}</div>}

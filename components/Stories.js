@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { api, startPolling, STORY_STATUS } from './api';
+import { api, peek, startPolling, STORY_STATUS } from './api';
 import { Hint, Pill } from './ui';
 import { P } from './prompts';
 
@@ -33,7 +33,7 @@ function StoryForm({ initial, onSave, onCancel }) {
 }
 
 export default function Stories() {
-  const [d, setD] = useState(null);
+  const [d, setD] = useState(() => peek('/api/profile') || null);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState('all');
   const load = useCallback(() => api('/api/profile').then(setD).catch(() => {}), []);

@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { api, startPolling } from './api';
+import { api, peek, startPolling } from './api';
 import { CopyIcon } from './ui';
 import RecPanel from './RecPanel';
 
@@ -31,9 +31,9 @@ function AddForm({ schools, onDone, onCancel }) {
 }
 
 export default function Recommenders() {
-  const [recs, setRecs] = useState(null);
-  const [schools, setSchools] = useState([]);
-  const [stories, setStories] = useState([]);
+  const [recs, setRecs] = useState(() => peek('/api/recommenders')?.recommenders || null);
+  const [schools, setSchools] = useState(() => peek('/api/dashboard')?.schools || []);
+  const [stories, setStories] = useState(() => (peek('/api/stories')?.stories || []).filter((x) => x.status === 'confirmed'));
   const [open, setOpen] = useState({});
   const [adding, setAdding] = useState(false);
   const [origin, setOrigin] = useState('');

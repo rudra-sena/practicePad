@@ -1,11 +1,12 @@
 'use client';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { api, startPolling, ESSAY_STATUS } from './api';
+import { api, peek, startPolling, ESSAY_STATUS } from './api';
 import { Hint, Pill, DaysLeft } from './ui';
 import { P } from './prompts';
 
 export default function EssaysView() {
-  const [groups, setGroups] = useState(null);
+  const [groups, setGroups] = useState(() => peek('/api/essays')?.groups || null);
   const [open, setOpen] = useState({});
   const [filter, setFilter] = useState('all');
   const load = useCallback(() => api('/api/essays').then((d) => setGroups(d.groups)).catch(() => {}), []);
@@ -34,7 +35,7 @@ export default function EssaysView() {
           <div key={school.id}>
             <div className="row between" style={{ margin: '18px 0 8px' }}>
               <div className="row"><h2 style={{ margin: 0 }}>{school.name}</h2><span className="small muted">{school.round}</span></div>
-              <div className="row"><DaysLeft days={school.days_left} /><a className="small" href={`/schools/${school.id}`}>Open application</a></div>
+              <div className="row"><DaysLeft days={school.days_left} /><Link className="small" href={`/schools/${school.id}`}>Open application</Link></div>
             </div>
             <div className="stack" style={{ gap: 0 }}>
               {shown.map((e) => {
@@ -56,7 +57,7 @@ export default function EssaysView() {
                         {['drafting'].includes(e.status) && <Hint label="For Claude to review this draft" prompt={P.reviewEssay(school.name, e.title)} />}
                         {e.status === 'outlined' && <p className="small muted" style={{ marginTop: 10 }}>Your outline is ready. Open the editor and start writing.</p>}
                         {e.status === 'reviewed' && <p className="small muted" style={{ marginTop: 10 }}>Claude’s review is in. Revise, or mark the essay final.</p>}
-                        <a className="btn primary sm" style={{ marginTop: 12 }} href={`/essays/${e.id}`}>{e.status === 'final' ? 'View essay' : 'Open editor'}</a>
+                        <Link className="btn primary sm" style={{ marginTop: 12 }} href={`/essays/${e.id}`}>{e.status === 'final' ? 'View essay' : 'Open editor'}</Link>
                       </div>
                     )}
                   </div>

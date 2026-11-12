@@ -1,5 +1,5 @@
 import { Logo } from '@/components/Shell';
-import { currentUser } from '@/lib/auth';
+import { sessionUserId } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ const FEATURES = [
 ];
 
 export default async function Home() {
-  const user = await currentUser().catch(() => null);
+  const user = await sessionUserId().catch(() => null);
   return (
     <>
       <div className="nav">
