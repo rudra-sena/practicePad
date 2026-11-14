@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { api, peek, startPolling, timeAgo } from './api';
+import { api, peek, startPolling } from './api';
 import { CopyIcon } from './ui';
 
 export default function Connect() {
@@ -31,7 +31,7 @@ export default function Connect() {
         </ol>
         <div className={me?.claude_connected_at ? 'notice' : 'warn'}>
           {me?.claude_connected_at
-            ? <>Claude connected. Last seen {timeAgo(me.claude_last_seen_at)}. <Link href="/dashboard">Go to your dashboard</Link></>
+            ? <>Claude connected. <Link href="/dashboard">Go to your dashboard</Link></>
             : 'Waiting for your Claude… This updates as soon as Claude first uses Mastercraft.'}
         </div>
       </div>

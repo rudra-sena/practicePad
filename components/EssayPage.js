@@ -2,9 +2,11 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, peek, startPolling, countWords, timeAgo, ESSAY_STATUS } from './api';
-import { Hint, Pill } from './ui';
+import { Hint, Pill, Toast } from './ui';
 import { OutlineView, OutlineEditor } from './Outline';
 import { P } from './prompts';
+
+const STATUS_LABEL = (k) => (ESSAY_STATUS[k] || [k])[0];
 
 export default function EssayPage({ id }) {
   const [d, setD] = useState(() => peek(`/api/essays/${id}`) || null);
@@ -14,16 +16,31 @@ export default function EssayPage({ id }) {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const dirty = useRef(false);
+  const prev = useRef(null);
+  const [toast, setToast] = useState(null);
+  const [flashKey, setFlashKey] = useState(0);
 
   const load = useCallback(async () => {
     try {
       const data = await api(`/api/essays/${id}`);
+      const sig = { outline: data.outline ? `${data.outline.version}` : '', review: data.reviews[0]?.id || 0, status: data.essay.status };
+      const p = prev.current;
+      if (p) {
+        if (sig.outline !== p.outline && data.outline?.edited_by === 'claude') {
+          setToast({ title: p.outline ? 'Claude updated your outline' : 'Your outline is ready', text: sig.status !== p.status ? `Essay status: ${STATUS_LABEL(sig.status)}` : 'Open the outline on the right.' });
+        } else if (sig.review !== p.review) {
+          setToast({ title: 'Claude’s review is in', text: sig.status !== p.status ? `Essay status: ${STATUS_LABEL(sig.status)}` : 'Read it under your draft.' });
+        }
+        if (sig.status !== p.status) setFlashKey((k) => k + 1);
+      }
+      prev.current = sig;
       setD(data);
       if (!dirty.current) setText(data.versions[0]?.body || '');
     } catch (e) { setErr(e.message); }
   }, [id]);
   useEffect(() => { load(); return startPolling(load, 4000); }, [load]);
 
+  const closeToast = useCallback(() => setToast(null), []);
   function flash(m) { setMsg(m); setTimeout(() => setMsg(''), 2000); }
 
   async function saveVersion() {
@@ -56,18 +73,28 @@ export default function EssayPage({ id }) {
   const reviewForLatest = reviews.find((r) => latest && r.version === latest.version);
   const shownReview = viewing ? reviews.find((r) => r.version === viewing.version) : reviews[0];
   const confirmed = stories.filter((s) => s.status === 'confirmed');
+  const locked = confirmed.length === 0 && !isFinal;
 
   return (
     <div className="stack">
       <Link href={`/schools/${school.id}`} className="small">← {school.name} application</Link>
       <div className="row between">
         <div>
-          <div className="row"><h1 style={{ margin: 0 }}>{school.name} · {essay.title}</h1><Pill map={ESSAY_STATUS} value={essay.status} /></div>
+          <div className="row"><h1 style={{ margin: 0 }}>{school.name} · {essay.title}</h1><span key={flashKey} className={flashKey ? 'status-flash' : ''} style={{ borderRadius: 99 }}><Pill map={ESSAY_STATUS} value={essay.status} /></span></div>
           <p className="muted" style={{ margin: '6px 0 0', maxWidth: 720 }}>{essay.prompt}</p>
         </div>
       </div>
       {msg && <div className="notice">{msg}</div>}
       {err && <div className="error">{err}</div>}
+      <Toast toast={toast} onDone={closeToast} />
+      {locked && (
+        <div className="warn">
+          <b>Build your profile first.</b> Essays are planned and written from your stories, so add your stories from your CV and confirm at least one before you start.
+          <div className="row" style={{ marginTop: 8 }}>
+            {stories.length > 0 ? <Link className="btn primary sm" href="/stories">Confirm your stories</Link> : <Link className="btn primary sm" href="/profile">Build your profile</Link>}
+          </div>
+        </div>
+      )}
 
       <div className="split">
         <div className="stack">
@@ -90,14 +117,14 @@ export default function EssayPage({ id }) {
               <textarea
                 className="editor"
                 value={text}
-                readOnly={isFinal}
+                readOnly={isFinal || locked}
                 onChange={(e) => { dirty.current = true; setText(e.target.value); }}
-                placeholder={outline ? 'Write your essay here, following your outline. Paste from Google Docs if you prefer.' : 'Plan the structure with Claude first, or start writing here.'}
+                placeholder={locked ? 'Build your profile first, then write here.' : outline ? 'Write your essay here, following your outline. Paste from Google Docs if you prefer.' : 'Plan the structure with Claude first, or start writing here.'}
               />
             )}
             {!viewing && (
               <div className="row" style={{ marginTop: 10 }}>
-                {!isFinal && <button className="btn primary" onClick={saveVersion} disabled={!text.trim()}>Save draft</button>}
+                {!isFinal && <button className="btn primary" onClick={saveVersion} disabled={!text.trim() || locked}>Save draft</button>}
                 {!isFinal && latest && <button className="btn outline" onClick={() => setFinal(true)}>Mark final</button>}
                 {isFinal && <button className="btn" onClick={() => setFinal(false)}>Reopen for editing</button>}
                 {dirty.current && !isFinal && <span className="small muted">Unsaved changes</span>}
@@ -137,6 +164,8 @@ export default function EssayPage({ id }) {
               </div>
             ) : outline ? (
               <div style={{ marginTop: 8 }}><OutlineView outline={outline} stories={stories} /></div>
+            ) : locked ? (
+              <p className="small muted" style={{ marginTop: 8 }}>Available once you have at least one confirmed story.</p>
             ) : (
               <>
                 <p className="small muted" style={{ marginTop: 8 }}>No outline yet. Claude will suggest stories that fit this prompt, let you choose, and build the structure.</p>

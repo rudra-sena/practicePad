@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, peek, startPolling, fmtDate, SCHOOL_STATUS } from './api';
 import { Hint, Pill, DaysLeft } from './ui';
 import { P } from './prompts';
+import CvImportModal from './CvImportModal';
 
 const NEXT = {
   connect: { label: 'Connect your Claude to start', href: '/connect' },
@@ -23,9 +24,17 @@ export default function Dashboard() {
   const next = d.steps.find((s) => !s.done);
   const n = next && NEXT[next.key];
   const doneCount = d.steps.filter((s) => s.done).length;
+  const connected = !!d.user.claude_connected_at;
+  const connectFirst = (
+    <div className="row" style={{ marginTop: 10 }}>
+      <span className="muted small">Connect your Claude to start adding schools.</span>
+      <Link className="btn primary sm" href="/connect">Connect Claude</Link>
+    </div>
+  );
 
   return (
     <div className="stack">
+      <CvImportModal username={d.user.username} total={d.stories_total} unconfirmed={d.stories_total - d.stories_confirmed} />
       <div className="row between">
         <div>
           <h1>Hi {d.user.name.split(' ')[0]}</h1>
@@ -72,8 +81,8 @@ export default function Dashboard() {
       </div>
       {d.schools.length === 0 ? (
         <div className="card">
-          <p className="muted">No schools yet.</p>
-          <Hint label="To add your schools" prompt={P.addSchools} />
+          <p className="muted" style={{ margin: 0 }}>No schools yet.</p>
+          {connected ? <Hint label="To add your schools" prompt={P.addSchools} /> : connectFirst}
         </div>
       ) : (
         <div className="grid3">
@@ -101,7 +110,7 @@ export default function Dashboard() {
           ))}
         </div>
       )}
-      {d.schools.length > 0 && <Hint label="To add another school" prompt={P.addSchools} />}
+      {d.schools.length > 0 && connected && <Hint label="To add another school" prompt={P.addSchools} />}
     </div>
   );
 }

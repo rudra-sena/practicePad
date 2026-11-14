@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export function Pill({ map, value }) {
   const [label, tone] = map[value] || [value, ''];
@@ -46,4 +46,30 @@ export function DaysLeft({ days }) {
   if (days < 0) return <span className="pill">Deadline passed</span>;
   const tone = days <= 7 ? 'red' : days <= 14 ? 'amber' : 'jade';
   return <span className={`pill ${tone}`}>{days === 0 ? 'Due today' : `${days} day${days === 1 ? '' : 's'} left`}</span>;
+}
+
+// Splits notes into short points: one per line, or per sentence / semicolon if written as a paragraph.
+export function toPoints(text) {
+  const t = String(text || '').trim();
+  if (!t) return [];
+  const lines = t.split(/\n+/).map((x) => x.replace(/^[-•*\s]+/, '').trim()).filter(Boolean);
+  if (lines.length > 1) return lines;
+  return t.split(/;\s+|\.\s+(?=[A-Z])/).map((x) => x.replace(/\.$/, '').trim()).filter(Boolean).map((x) => x[0].toUpperCase() + x.slice(1));
+}
+
+// Small self-dismissing message in the corner.
+export function Toast({ toast, onDone }) {
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(onDone, 4500);
+    return () => clearTimeout(id);
+  }, [toast, onDone]);
+  if (!toast) return null;
+  return (
+    <div className="toast" role="status">
+      <span className="toast-tick">✓</span>
+      <div><b>{toast.title}</b>{toast.text && <div className="small">{toast.text}</div>}</div>
+      <button className="toast-x" onClick={onDone} aria-label="Dismiss">×</button>
+    </div>
+  );
 }

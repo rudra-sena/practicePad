@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, peek, startPolling, fmtDate, timeAgo, ESSAY_STATUS, SCHOOL_STATUS } from './api';
-import { Hint, Pill, DaysLeft } from './ui';
+import { Hint, Pill, DaysLeft, toPoints } from './ui';
 import { P } from './prompts';
 
 const SEV = { must_fix: ['Must fix', 'red'], consider: ['Consider', 'amber'], looks_good: ['Looks good', 'jade'] };
@@ -75,6 +75,51 @@ function FinalCheckModal({ school, openedAt, onClose, onDecision }) {
   );
 }
 
+function EssayCard({ e, onChanged }) {
+  const [edit, setEdit] = useState(false);
+  const [f, setF] = useState({});
+  const [err, setErr] = useState('');
+  async function save() {
+    setErr('');
+    try { await api(`/api/essays/${e.id}`, 'PATCH', { title: f.title, prompt: f.prompt, word_limit: f.word_limit || null }); setEdit(false); onChanged(); } catch (x) { setErr(x.message); }
+  }
+  async function remove(ev) {
+    ev.preventDefault(); ev.stopPropagation();
+    if (!confirm(`Delete ${e.title}? Its drafts, outline and reviews are deleted too. This cannot be undone.`)) return;
+    await api(`/api/essays/${e.id}`, 'DELETE'); onChanged();
+  }
+  if (edit) {
+    return (
+      <div className="card stack small">
+        <div className="grid2">
+          <div><label>Title</label><input value={f.title} onChange={(x) => setF({ ...f, title: x.target.value })} /></div>
+          <div><label>Word limit</label><input type="number" min="1" value={f.word_limit} onChange={(x) => setF({ ...f, word_limit: x.target.value })} placeholder="None" /></div>
+        </div>
+        <div><label>Prompt</label><textarea rows={3} value={f.prompt} onChange={(x) => setF({ ...f, prompt: x.target.value })} /></div>
+        {err && <div className="error">{err}</div>}
+        <div className="row"><button className="btn primary sm" onClick={save}>Save</button><button className="btn sm ghost" onClick={() => setEdit(false)}>Cancel</button></div>
+      </div>
+    );
+  }
+  return (
+    <Link href={`/essays/${e.id}`} className="card link-card">
+      <div className="row between">
+        <div className="row"><b>{e.title}</b><Pill map={ESSAY_STATUS} value={e.status} /></div>
+        <div className="row" style={{ gap: 4 }}>
+          <span className={`small ${e.word_limit && e.word_count > e.word_limit ? 'bad' : 'muted'}`}>{e.word_count}{e.word_limit ? ` / ${e.word_limit}` : ''} words</span>
+          <button className="icon-btn" title="Edit prompt" aria-label="Edit prompt" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setF({ title: e.title, prompt: e.prompt, word_limit: e.word_limit || '' }); setEdit(true); }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+          </button>
+          <button className="icon-btn danger" title="Delete essay" aria-label="Delete essay" onClick={remove}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /></svg>
+          </button>
+        </div>
+      </div>
+      <p className="small muted" style={{ margin: '6px 0 0' }}>{e.prompt}</p>
+    </Link>
+  );
+}
+
 export default function SchoolPage({ id }) {
   const [s, setS] = useState(() => peek(`/api/schools/${id}`)?.school || null);
   const [err, setErr] = useState('');
@@ -141,7 +186,7 @@ export default function SchoolPage({ id }) {
           <div className="grid2">
             <div><label>Application fee</label><input value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} /></div>
           </div>
-          <div><label>School notes</label><textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+          <div><label>School notes (one point per line)</label><textarea rows={4} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           <div className="row"><button className="btn primary sm" onClick={async () => { await patch(form); setEdit(false); }}>Save</button><button className="btn sm danger ghost" onClick={removeSchool}>Delete school</button></div>
           <Hint label="Or to update it through Claude" prompt={P.updateSchool(s.name)} />
         </div>
@@ -158,12 +203,7 @@ export default function SchoolPage({ id }) {
         <div className="stack">
           <h2 style={{ margin: '6px 0 0' }}>Essays</h2>
           {s.essays.length === 0 && <div className="card small muted">No essay prompts saved for this school.</div>}
-          {s.essays.map((e) => (
-            <Link key={e.id} href={`/essays/${e.id}`} className="card link-card">
-              <div className="row between"><div className="row"><b>{e.title}</b><Pill map={ESSAY_STATUS} value={e.status} /></div><span className={`small ${e.word_limit && e.word_count > e.word_limit ? 'bad' : 'muted'}`}>{e.word_count}{e.word_limit ? ` / ${e.word_limit}` : ''} words</span></div>
-              <p className="small muted" style={{ margin: '6px 0 0' }}>{e.prompt}</p>
-            </Link>
-          ))}
+          {s.essays.map((e) => <EssayCard key={e.id} e={e} onChanged={load} />)}
           {s.latest_check && (
             <div className="card">
               <div className="row between"><h3 style={{ margin: 0 }}>Latest final check</h3><span className="small faint">{timeAgo(s.latest_check.created_at)}</span></div>
@@ -174,19 +214,23 @@ export default function SchoolPage({ id }) {
         <div className="stack">
           <div className="card">
             <h3>Checklist</h3>
-            {s.checklist.map((c) => (
-              <div key={c.id} className="row" style={{ padding: '4px 0', flexWrap: 'nowrap' }}>
-                <input type="checkbox" checked={c.done} onChange={() => toggleItem(c)} style={{ width: 18, height: 18, accentColor: 'var(--jade)' }} />
-                <span className={`grow ${c.done ? 'muted' : ''}`} style={{ textDecoration: c.done ? 'line-through' : 'none' }}>{c.label}</span>
-                <button className="btn sm ghost danger" onClick={() => removeItem(c)} aria-label="Remove">✕</button>
-              </div>
-            ))}
+            <div className="checklist">
+              {s.checklist.map((c) => (
+                <div key={c.id} className={`ck ${c.done ? 'done' : ''}`}>
+                  <button className="ck-main" onClick={() => toggleItem(c)} aria-pressed={c.done}>
+                    <span className="ck-box">{c.done ? '✓' : ''}</span>
+                    <span>{c.label}</span>
+                  </button>
+                  <button className="ck-x" onClick={() => removeItem(c)} aria-label="Remove item" title="Remove">×</button>
+                </div>
+              ))}
+            </div>
             <form className="row" style={{ marginTop: 8, flexWrap: 'nowrap' }} onSubmit={addItem}>
               <input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Add an item" />
               <button className="btn sm">Add</button>
             </form>
           </div>
-          {s.notes && <div className="card small"><h3>School notes</h3><p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{s.notes}</p></div>}
+          {s.notes && <div className="card small"><h3>School notes</h3><ul className="points">{toPoints(s.notes).map((n, i) => <li key={i}>{n}</li>)}</ul></div>}
           <div className="card small">
             <h3>Recommenders</h3>
             {s.recommenders.length === 0 ? <p className="muted" style={{ margin: 0 }}>None for this school yet. <Link href="/recommenders">Add one</Link></p> :

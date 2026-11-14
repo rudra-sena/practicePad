@@ -1,15 +1,15 @@
 import { Logo } from '@/components/Shell';
 import { sessionUserId } from '@/lib/auth';
+import Carousel from '@/components/Carousel';
 
 export const dynamic = 'force-dynamic';
 
 const FEATURES = [
-  ['Schools that fill themselves in', 'Ask your Claude to add ISB, INSEAD or any programme. Deadlines, essay prompts and checklists appear, with sources to verify.'],
-  ['Your stories, organised once', 'Claude reads your CV and pulls out your experiences as stories. Fill the gaps with a few short answers.'],
-  ['Plan, write, get reviewed', 'Claude builds the structure for each essay from your own stories. You write. Claude reviews every draft.'],
-  ['A final check per school', 'When a school’s essays are final, Claude checks that application as a whole before you submit.'],
-  ['Recommenders, without the WhatsApp chaos', 'Give your recommender one link with the questions, a shared outline and a place to draft.'],
-  ['No AI inside, by design', 'Mastercraft runs no AI. Your own Claude does the thinking; Mastercraft keeps everything in one place.'],
+  ['Schools that fill themselves in', 'Name a school. Deadlines, essay prompts and checklists appear, with sources to check.'],
+  ['Your stories, organised once', 'Your CV becomes a bank of stories you reuse across every essay.'],
+  ['Plan, write, get reviewed', 'A plan for each essay from your own stories. You write. Every draft gets reviewed.'],
+  ['A final check before you submit', 'When a school’s essays are final, the whole application is checked in one go.'],
+  ['Recommenders in one link', 'Your recommender gets the questions, a shared outline and a place to draft.'],
 ];
 
 export default async function Home() {
@@ -44,14 +44,7 @@ export default async function Home() {
           </div>
           <p className="small muted" style={{ marginTop: 10 }}>Demo login: <b>demo</b> / <b>mastercraft</b></p>
         </div>
-        <div className="feature-grid">
-          {FEATURES.map(([t, d]) => (
-            <div key={t} className="card accent">
-              <h3>{t}</h3>
-              <p className="muted small" style={{ margin: 0 }}>{d}</p>
-            </div>
-          ))}
-        </div>
+        <Carousel items={FEATURES} />
         <p className="small faint" style={{ marginTop: 28 }}>Mastercraft helps you plan and review. Your essays stay your own words.</p>
       </div>
     </>

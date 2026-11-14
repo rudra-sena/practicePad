@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, peek, startPolling } from './api';
 import { Hint } from './ui';
 import { P } from './prompts';
+import CvImportModal from './CvImportModal';
 
 const FIELDS = [
   ['current_role', 'Current role'], ['company', 'Company'], ['years_experience', 'Years of experience'], ['industry', 'Industry'],
@@ -51,6 +52,7 @@ export default function Profile() {
         </div>
       </div>
       {msg && <div className="notice">{msg}</div>}
+      <CvImportModal username={d.username} total={d.stories.length} unconfirmed={d.stories.filter((s) => s.status !== 'confirmed').length} />
 
       <div className="card">
         <h3>From your CV</h3>

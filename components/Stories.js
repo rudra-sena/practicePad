@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, peek, startPolling, STORY_STATUS } from './api';
 import { Hint, Pill } from './ui';
 import { P } from './prompts';
+import CvImportModal, { markStoriesSeen } from './CvImportModal';
 
 const THEMES = ['leadership', 'teamwork', 'impact', 'failure', 'initiative', 'personal'];
 const blank = { title: '', situation: '', action: '', result: '', themes: [], role_context: '', period: '' };
@@ -42,6 +43,8 @@ export default function Stories() {
 
   const stories = d.stories.filter((s) => filter === 'all' || s.status === filter || (filter === 'todo' && s.status !== 'confirmed'));
   async function confirmStory(s) { await api(`/api/stories/${s.id}`, 'PATCH', { status: 'confirmed' }); load(); }
+  async function confirmAll() { await api('/api/stories/confirm-all', 'POST'); load(); }
+  const unconfirmed = d.stories.filter((s) => s.status !== 'confirmed').length;
   async function remove(s) { if (!confirm(`Delete "${s.title}"?`)) return; await api(`/api/stories/${s.id}`, 'DELETE'); load(); }
 
   return (
@@ -51,11 +54,16 @@ export default function Stories() {
           <h1>Story bank</h1>
           <p className="muted" style={{ margin: 0 }}>{d.stories.filter((s) => s.status === 'confirmed').length} of {d.stories.length} stories confirmed. Only confirmed stories are used to plan essays.</p>
         </div>
-        <button className="btn primary" onClick={() => setEditing('new')}>+ Add a story</button>
+        <div className="row">
+          {unconfirmed > 0 && <button className="btn outline" onClick={confirmAll}>Confirm all {unconfirmed}</button>}
+          <button className="btn primary" onClick={() => setEditing('new')}>+ Add a story</button>
+        </div>
       </div>
+      <CvImportModal username={d.username} total={d.stories.length} unconfirmed={unconfirmed} />
 
       <div className="card">
         <div className="section-title">Theme coverage</div>
+        <p className="tiny muted" style={{ margin: '0 0 8px' }}>Every story is tagged with one or more of these six themes, so Claude can match stories to essay prompts.</p>
         <div className="coverage">
           {d.coverage.map((c) => <span key={c.theme} className={`pill ${c.count ? 'jade' : 'red'}`}>{c.theme} · {c.count}</span>)}
         </div>
@@ -63,7 +71,7 @@ export default function Stories() {
       </div>
 
       {editing === 'new' && (
-        <div className="card"><h3>New story</h3><StoryForm onCancel={() => setEditing(null)} onSave={async (f) => { await api('/api/stories', 'POST', f); setEditing(null); load(); }} /></div>
+        <div className="card"><h3>New story</h3><StoryForm onCancel={() => setEditing(null)} onSave={async (f) => { await api('/api/stories', 'POST', f); markStoriesSeen(d.username, d.stories.length + 1); setEditing(null); load(); }} /></div>
       )}
 
       <div className="tabs">

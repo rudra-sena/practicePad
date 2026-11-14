@@ -109,3 +109,44 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); 
 .feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
 @media (max-width: 760px) { .feature-grid { grid-template-columns: 1fr; } }
 .saved { font-size: 12px; color: var(--jade); }
+
+/* Landing carousel */
+.carousel { position: relative; margin-top: 8px; }
+.car-track { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; padding: 4px 2px 12px; scrollbar-width: none; }
+.car-track::-webkit-scrollbar { display: none; }
+.car-card { flex: 0 0 min(560px, 86%); scroll-snap-align: start; min-height: 220px; border-radius: 18px; padding: 30px 30px 26px; background: var(--jade-wash); border: 1px solid var(--jade-soft); display: flex; flex-direction: column; justify-content: flex-end; }
+.car-card .car-num { font-size: 13px; font-weight: 700; color: var(--jade); margin-bottom: auto; }
+.car-card h3 { font-size: 26px; letter-spacing: -0.02em; margin: 18px 0 8px; color: var(--jade-ink); }
+.car-card p { margin: 0; font-size: 15px; color: #33413C; max-width: 440px; }
+.car-ctrl { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.car-btn { width: 36px; height: 36px; border-radius: 99px; border: 1px solid var(--line); background: #fff; cursor: pointer; font-size: 18px; color: var(--jade-ink); }
+.car-btn:hover { border-color: var(--jade); }
+.car-dots { display: flex; gap: 6px; }
+.car-dot { width: 8px; height: 8px; border-radius: 99px; background: #D5DFDC; border: none; padding: 0; cursor: pointer; }
+.car-dot.on { background: var(--jade); width: 22px; }
+
+/* Checklist: password-criteria style */
+.checklist { display: flex; flex-direction: column; gap: 2px; }
+.ck { display: flex; align-items: center; border-radius: 8px; }
+.ck:hover { background: #F6F8F7; }
+.ck-main { flex: 1; display: flex; align-items: center; gap: 9px; background: none; border: none; text-align: left; padding: 5px 6px; font: inherit; font-size: 13px; color: #4B5563; cursor: pointer; }
+.ck-box { width: 17px; height: 17px; flex: 0 0 17px; border-radius: 99px; border: 1.5px solid #C9D3CF; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; transition: all .15s; }
+.ck.done .ck-main { color: var(--jade-dark); font-weight: 600; }
+.ck.done .ck-box { background: var(--jade); border-color: var(--jade); }
+.ck-x { opacity: 0; border: none; background: none; color: #9CA3AF; font-size: 16px; cursor: pointer; padding: 0 8px; }
+.ck:hover .ck-x { opacity: 1; }
+.ck-x:hover { color: #B91C1C; }
+
+.points { margin: 0; padding-left: 18px; } .points li { margin: 3px 0; }
+.icon-btn { border: none; background: transparent; color: #6B7280; cursor: pointer; padding: 5px; border-radius: 6px; display: inline-flex; }
+.icon-btn:hover { background: var(--jade-soft); color: var(--jade-ink); }
+.icon-btn.danger:hover { background: #FEE2E2; color: #B91C1C; }
+
+/* Toast and success modal */
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 1px solid var(--jade-soft); border-left: 4px solid var(--jade); box-shadow: 0 10px 30px rgba(15,30,40,.15); border-radius: 12px; padding: 12px 14px; max-width: 360px; animation: toast-in .25s ease-out; }
+.toast-tick { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 99px; background: var(--jade); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.toast-x { border: none; background: none; font-size: 18px; color: #9CA3AF; cursor: pointer; margin-left: 4px; }
+@keyframes toast-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.big-tick { width: 58px; height: 58px; border-radius: 99px; background: var(--jade); color: #fff; font-size: 30px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; align-self: center; }
+.status-flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 0 rgba(14,159,110,.55); } 100% { box-shadow: 0 0 0 12px rgba(14,159,110,0); } }
